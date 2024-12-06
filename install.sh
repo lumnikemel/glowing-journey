@@ -139,7 +139,7 @@ select_drives() {
         whiptail --title "Error" --msgbox "Please select exactly 2 drives" $WHIPTAIL_HEIGHT $WHIPTAIL_WIDTH
         log ERROR "Invalid number of drives selected"
         exit 1
-    }
+    fi
     
     echo "${drive_array[@]}"
 }
