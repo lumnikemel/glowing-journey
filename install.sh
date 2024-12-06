@@ -48,18 +48,15 @@ log() {
 
 # Error handling
 set -e
-trap 'error_handler $? $LINENO $BASH_LINENO "$BASH_COMMAND" $(printf "::%s" ${FUNCNAME[@]:-})' ERR
+trap 'error_handler $? $LINENO "$BASH_COMMAND"' ERR
 
 error_handler() {
     local exit_code=$1
     local line_no=$2
-    local bash_lineno=$3
     local last_command=$4
-    local func_trace=$5
     whiptail --title "Error" --msgbox "An error occurred:\n\nLine: $line_no\nCommand: $last_command\nError code: $exit_code" \
         $WHIPTAIL_HEIGHT $WHIPTAIL_WIDTH
     log ERROR "Error $exit_code occurred on line $line_no: $last_command"
-    log ERROR "Function trace: $func_trace"
     exit $exit_code
 }
 
