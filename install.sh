@@ -239,82 +239,57 @@ get_passwords() {
     done
 }
 
-# Progress gauge function
-show_progress() {
-    local message=$1
-    local current=$2
-    local total=$3
-    local percentage=$((current * 100 / total))
-    
-    echo "XXX"
-    echo $percentage
-    echo "$message"
-    echo "XXX"
-}
-
 # Function to create and configure ZFS pool
 setup_zfs_pool() {
     local drive1=$1
     local drive2=$2
     
-    {
-        local total_steps=8
-        local current_step=1
-        
-        # Create partitions
-        show_progress "Creating partitions..." $current_step $total_steps
-        for drive in "$drive1" "$drive2"; do
-            sgdisk --zap-all "$drive"
-            sgdisk -n1:1M:+1G -t1:EF00 "$drive" # EFI partition
-            sgdisk -n2:0:0 -t2:BF00 "$drive"     # ZFS partition
-        done
-        ((current_step++))
-        
-        # Setup encryption
-        show_progress "Setting up disk encryption..." $current_step $total_steps
-        echo -n "$DISK_PASSWORD" | cryptsetup luksFormat "${drive1}-part2"
-        echo -n "$DISK_PASSWORD" | cryptsetup luksFormat "${drive2}-part2"
-        echo -n "$DISK_PASSWORD" | cryptsetup open "${drive1}-part2" cryptzfs1
-        echo -n "$DISK_PASSWORD" | cryptsetup open "${drive2}-part2" cryptzfs2
-        ((current_step++))
-        
-        # Create ZFS pool
-        show_progress "Creating ZFS pool..." $current_step $total_steps
-        zpool create -f -o ashift=12 \
-                    -O acltype=posixacl \
-                    -O relatime=on \
-                    -O xattr=sa \
-                    -O dnodesize=auto \
-                    -O normalization=formD \
-                    -O mountpoint=none \
-                    -O canmount=off \
-                    -O devices=off \
-                    -R /mnt \
-                    "$ZFS_POOL_NAME" mirror \
-                    /dev/mapper/cryptzfs1 \
-                    /dev/mapper/cryptzfs2
-        ((current_step++))
-        
-        # Create datasets
-        show_progress "Creating ZFS datasets..." $current_step $total_steps
-        zfs create -o mountpoint=none "$ZFS_POOL_NAME/ROOT"
-        zfs create -o mountpoint=/ "$ZFS_POOL_NAME/ROOT/default"
-        zfs create -o mountpoint=/home "$ZFS_POOL_NAME/home"
-        zfs create -o mountpoint=/var -o canmount=off "$ZFS_POOL_NAME/var"
-        zfs create "$ZFS_POOL_NAME/var/cache"
-        zfs create "$ZFS_POOL_NAME/var/log"
-        zfs create "$ZFS_POOL_NAME/var/spool"
-        zfs create "$ZFS_POOL_NAME/var/tmp"
-        ((current_step++))
-        
-        # Set ZFS properties
-        show_progress "Setting ZFS properties..." $current_step $total_steps
-        zfs set compression=lz4 "$ZFS_POOL_NAME"
-        zfs set atime=off "$ZFS_POOL_NAME"
-        ((current_step++))
-        
-    } | whiptail --title "Setting up ZFS" --gauge "Preparing drives..." \
-        $WHIPTAIL_HEIGHT $WHIPTAIL_WIDTH 0
+    # Create partitions
+    whiptail --title "Installation Progress" --infobox "Creating partitions..." $WHIPTAIL_HEIGHT $WHIPTAIL_WIDTH
+    for drive in "$drive1" "$drive2"; do
+        sgdisk --zap-all "$drive"
+        sgdisk -n1:1M:+1G -t1:EF00 "$drive" # EFI partition
+        sgdisk -n2:0:0 -t2:BF00 "$drive"     # ZFS partition
+    done
+    
+    # Setup encryption
+    whiptail --title "Installation Progress" --infobox "Setting up disk encryption..." $WHIPTAIL_HEIGHT $WHIPTAIL_WIDTH
+    echo -n "$DISK_PASSWORD" | cryptsetup luksFormat "${drive1}-part2"
+    echo -n "$DISK_PASSWORD" | cryptsetup luksFormat "${drive2}-part2"
+    echo -n "$DISK_PASSWORD" | cryptsetup open "${drive1}-part2" cryptzfs1
+    echo -n "$DISK_PASSWORD" | cryptsetup open "${drive2}-part2" cryptzfs2
+    
+    # Create ZFS pool
+    whiptail --title "Installation Progress" --infobox "Creating ZFS pool..." $WHIPTAIL_HEIGHT $WHIPTAIL_WIDTH
+    zpool create -f -o ashift=12 \
+                -O acltype=posixacl \
+                -O relatime=on \
+                -O xattr=sa \
+                -O dnodesize=auto \
+                -O normalization=formD \
+                -O mountpoint=none \
+                -O canmount=off \
+                -O devices=off \
+                -R /mnt \
+                "$ZFS_POOL_NAME" mirror \
+                /dev/mapper/cryptzfs1 \
+                /dev/mapper/cryptzfs2
+    
+    # Create datasets
+    whiptail --title "Installation Progress" --infobox "Creating ZFS datasets..." $WHIPTAIL_HEIGHT $WHIPTAIL_WIDTH
+    zfs create -o mountpoint=none "$ZFS_POOL_NAME/ROOT"
+    zfs create -o mountpoint=/ "$ZFS_POOL_NAME/ROOT/default"
+    zfs create -o mountpoint=/home "$ZFS_POOL_NAME/home"
+    zfs create -o mountpoint=/var -o canmount=off "$ZFS_POOL_NAME/var"
+    zfs create "$ZFS_POOL_NAME/var/cache"
+    zfs create "$ZFS_POOL_NAME/var/log"
+    zfs create "$ZFS_POOL_NAME/var/spool"
+    zfs create "$ZFS_POOL_NAME/var/tmp"
+    
+    # Set ZFS properties
+    whiptail --title "Installation Progress" --infobox "Setting ZFS properties..." $WHIPTAIL_HEIGHT $WHIPTAIL_WIDTH
+    zfs set compression=lz4 "$ZFS_POOL_NAME"
+    zfs set atime=off "$ZFS_POOL_NAME"
 }
 
 [Previous functions remain the same...]
