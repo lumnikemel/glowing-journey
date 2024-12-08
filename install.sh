@@ -1,17 +1,44 @@
 #!/bin/bash
 
+# Function to get drive type (USB or DISK)
+get_drive_type() {
+    local device=$1
+    if udevadm info --query=property "/dev/$device" | grep -q "ID_BUS=usb"; then
+        echo "USB"
+    else
+        echo "DISK"
+    fi
+}
+
+# Function to get drive's by-id path
+get_drive_by_id() {
+    local device=$1
+    # Get the first non-wwn, non-nvme-eui persistent name for the device
+    local by_id=$(ls -l /dev/disk/by-id | grep -v wwn | grep -v nvme-eui | grep -w "$device" | head -n1 | awk '{print $9}')
+    if [ -z "$by_id" ]; then
+        echo "$device (no persistent ID)"
+    else
+        echo "$by_id"
+    fi
+}
+
 # Function to get all available drives and format them for whiptail
 get_drive_list() {
     local drive_list=()
     while IFS= read -r line; do
         local name=$(echo "$line" | awk '{print $1}')
         local size=$(echo "$line" | awk '{print $2}')
-        local model=$(echo "$line" | cut -d' ' -f3-)
+        
         # Skip loop devices and installation media
         if [[ ! $name =~ ^loop && ! $name =~ ^sr ]]; then
-            drive_list+=("$name" "$size - $model" "off")
+            # Get persistent name
+            local by_id=$(get_drive_by_id "$name")
+            # Get drive type
+            local drive_type=$(get_drive_type "$name")
+            
+            drive_list+=("$by_id" "$size [$drive_type]" "off")
         fi
-    done < <(lsblk -d -n -o NAME,SIZE,MODEL)
+    done < <(lsblk -d -n -o NAME,SIZE)
     echo "${drive_list[@]}"
 }
 
@@ -19,9 +46,9 @@ get_drive_list() {
 TERM_HEIGHT=$(tput lines)
 TERM_WIDTH=$(tput cols)
 
-# Calculate whiptail window dimensions
+# Calculate whiptail window dimensions (made wider for longer by-id names)
 WHIP_HEIGHT=$((TERM_HEIGHT - 8))
-WHIP_WIDTH=$((TERM_WIDTH - 20))
+WHIP_WIDTH=$((TERM_WIDTH - 10))
 
 # Create temporary files for storing selections
 TMP_DRIVES=$(mktemp)
